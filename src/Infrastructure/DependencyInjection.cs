@@ -1,14 +1,9 @@
-using DDDExample.Application.Interfaces;
-using DDDExample.Application.Services;
 using DDDExample.Domain.Repositories;
-using DDDExample.Infrastructure.Persistence.MongoDB;
 using DDDExample.Infrastructure.Persistence.SqlServer;
-using DDDExample.Infrastructure.Repositories.MongoDB;
 using DDDExample.Infrastructure.Repositories.SqlServer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
 namespace DDDExample.Infrastructure;
 
@@ -30,18 +25,6 @@ public static class DependencyInjection
         
         // Register SQL Server Product Repository
         services.AddScoped<IRepository<Domain.Entities.Product, Guid>, SqlProductRepository>();
-        
-        // Configure MongoDB settings
-        var mongoDbSettings = configuration.GetSection("MongoDBSettings").Get<MongoDbSettings>()
-            ?? throw new InvalidOperationException("MongoDBSettings configuration section is missing or invalid");
-        
-        // Register MongoDB context with settings
-        services.AddSingleton<MongoDbContext>(_ => 
-            new MongoDbContext(Options.Create(mongoDbSettings)));
-        
-        // Register MongoDB Category Repository
-        services.AddScoped<IRepository<Domain.Entities.Category, string>>(sp => 
-            new MongoCategoryRepository(sp.GetRequiredService<MongoDbContext>()));
 
         return services;
     }

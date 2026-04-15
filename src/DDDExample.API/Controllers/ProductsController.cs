@@ -9,16 +9,13 @@ namespace DDDExample.API.Controllers;
 public class ProductsController : ControllerBase
 {
     private readonly IProductService _productService;
-    private readonly ICategoryService _categoryService;
     private readonly ILogger<ProductsController> _logger;
 
     public ProductsController(
         IProductService productService,
-        ICategoryService categoryService,
         ILogger<ProductsController> logger)
     {
         _productService = productService ?? throw new ArgumentNullException(nameof(productService));
-        _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -30,15 +27,6 @@ public class ProductsController : ControllerBase
         var product = await _productService.GetByIdAsync(id, cancellationToken);
         if (product is null) return NotFound();
         
-        if (!string.IsNullOrEmpty(product.CategoryId))
-        {
-            var category = await _categoryService.GetByIdAsync(product.CategoryId, cancellationToken);
-            if (category is not null)
-            {
-                product.CategoryName = category.Name;
-            }
-        }
-        
         return Ok(product);
     }
 
@@ -48,29 +36,6 @@ public class ProductsController : ControllerBase
     {
         var products = (await _productService.GetAllAsync(cancellationToken)).ToList();
         var categoryIds = products.Select(p => p.CategoryId).Distinct().ToList();
-        
-        var categories = new Dictionary<string, string>();
-        foreach (var categoryId in categoryIds)
-        {
-            if (!string.IsNullOrEmpty(categoryId))
-            {
-                var category = await _categoryService.GetByIdAsync(categoryId, cancellationToken);
-                if (category is not null)
-                {
-                    categories[categoryId] = category.Name;
-                }
-            }
-        }
-        
-        // Actualizar los nombres de categoría en los productos
-        foreach (var product in products)
-        {
-            if (!string.IsNullOrEmpty(product.CategoryId) && 
-                categories.TryGetValue(product.CategoryId, out var categoryName))
-            {
-                product.CategoryName = categoryName;
-            }
-        }
         
         var result = products.AsEnumerable();
         
