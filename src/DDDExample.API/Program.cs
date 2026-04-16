@@ -49,6 +49,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 // Register application services
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
 
 var app = builder.Build();
 
