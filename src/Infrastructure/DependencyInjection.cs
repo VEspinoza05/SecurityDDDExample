@@ -1,6 +1,5 @@
-using DDDExample.Application.Interfaces;
-using DDDExample.Application.Services;
 using DDDExample.Domain.Repositories;
+using DDDExample.Infrastructure.Configuration;
 using DDDExample.Infrastructure.Persistence.MongoDB;
 using DDDExample.Infrastructure.Persistence.SqlServer;
 using DDDExample.Infrastructure.Repositories.MongoDB;
@@ -42,6 +41,13 @@ public static class DependencyInjection
         // Register MongoDB Category Repository
         services.AddScoped<IRepository<Domain.Entities.Category, string>>(sp => 
             new MongoCategoryRepository(sp.GetRequiredService<MongoDbContext>()));
+
+        // Configure JWT settings
+        var jwtSettings = configuration.GetSection("Authentication:Jwt").Get<JwtSettings>();
+        if (jwtSettings != null)
+        {
+            services.Configure<JwtSettings>(configuration.GetSection("Authentication:Jwt"));
+        }
 
         return services;
     }

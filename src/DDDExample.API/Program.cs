@@ -10,6 +10,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
+using DDDExample.Infrastructure.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,6 +32,29 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1",
         Description = "A clean architecture example with DDD"
     });
+
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme()
+    {
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer"
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
     
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
@@ -47,9 +71,14 @@ builder.Services.AddAutoMapper(typeof(MappingProfile));
 // Add infrastructure services
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// Add JWT authentication
+builder.Services.AddJwtAuthentication(builder.Configuration);
+
 // Register application services
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<ITokenService, JwtTokenService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 var app = builder.Build();
 
@@ -90,6 +119,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

@@ -15,6 +15,12 @@ public class ApplicationDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<ApplicationUser>(entity =>
+        {
+            entity.Property(e => e.FirstName).HasMaxLength(100);
+            entity.Property(e => e.LastName).HasMaxLength(100);
+        });
         
         modelBuilder.Entity<Product>(entity =>
         {
