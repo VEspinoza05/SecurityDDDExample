@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using DDDExample.Infrastructure.Configuration;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -71,14 +72,21 @@ builder.Services.AddAutoMapper(typeof(MappingProfile));
 // Add infrastructure services
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// Add JWT authentication
-builder.Services.AddJwtAuthentication(builder.Configuration);
+// Data Protection para refresh tokens
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo("keys"))
+    .SetApplicationName("DDDExample");
+
+// Authentication
+builder.Services.AddJwtMfaAuthentication(builder.Configuration);
 
 // Register application services
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IMfaService, TotpMfaService>();
+builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 
 var app = builder.Build();
 

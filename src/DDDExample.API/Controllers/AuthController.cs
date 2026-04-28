@@ -1,26 +1,40 @@
+
 using DDDExample.Application.DTOs;
 using DDDExample.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DDDExample.API.Controllers;
+namespace DDDExample.API.Authentication.JwtMfa.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IRefreshTokenService _refreshTokenService;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, IRefreshTokenService refreshTokenService)
     {
         _authService = authService;
+        _refreshTokenService = refreshTokenService;
     }
 
     [HttpPost("login")]
     public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request)
     {
         var result = await _authService.LoginAsync(request);
-        if (result == null)
+        
+        if (result.RequiresMfa)
+        {
+            return Ok(new LoginResponse
+            {
+                RequiresMfa = true,
+                MfaToken = result.MfaToken,
+                User = result.User
+            });
+        }
+
+        if (string.IsNullOrEmpty(result.Token))
         {
             return Unauthorized(new { message = "Invalid email or password" });
         }
@@ -28,21 +42,35 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPost("register")]
-    public async Task<ActionResult<RegisterResponse>> Register([FromBody] RegisterRequest request)
+    [HttpPost("verify-mfa")]
+    public async Task<ActionResult<LoginResponse>> VerifyMfa([FromBody] MfaVerifyRequest request)
     {
-        var result = await _authService.RegisterAsync(request);
-        if (!result.Success)
+        var result = await _authService.VerifyMfaAsync(request);
+        
+        if (string.IsNullOrEmpty(result.Token))
         {
-            return BadRequest(result);
+            return BadRequest(new { message = "Invalid MFA code" });
         }
 
-        return CreatedAtAction(nameof(Login), new { }, result);
+        return Ok(result);
     }
 
-    [HttpGet("profile")]
+    [HttpPost("refresh")]
+    public async Task<ActionResult<LoginResponse>> RefreshToken([FromBody] RefreshTokenRequest request)
+    {
+        var result = await _refreshTokenService.RotateRefreshTokenAsync(request.RefreshToken);
+        
+        if (string.IsNullOrEmpty(result))
+        {
+            return BadRequest(new { message = "Invalid refresh token" });
+        }
+
+        return Ok(result);
+    }
+
+    [HttpPost("logout")]
     [Authorize]
-    public async Task<ActionResult<UserDto>> GetProfile()
+    public async Task<IActionResult> Logout()
     {
         var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
@@ -50,13 +78,7 @@ public class AuthController : ControllerBase
             return Unauthorized();
         }
 
-        // Aquí podrías obtener el usuario desde la base de datos
-        return Ok(new UserDto
-        {
-            Id = Guid.Parse(userId),
-            Email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? string.Empty,
-            FullName = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? string.Empty,
-            CreatedAt = DateTime.UtcNow
-        });
+        await _refreshTokenService.RevokeUserTokensAsync(Guid.Parse(userId));
+        return Ok(new { message = "Logged out successfully" });
     }
 }
