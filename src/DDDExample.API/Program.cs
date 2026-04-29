@@ -11,6 +11,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using DDDExample.Infrastructure.Configuration;
+using DDDExample.Middleware;
+using DDDExample.Domain.Repositories;
+using DDDExample.Infrastructure.Repositories.MongoDB;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -74,6 +77,15 @@ builder.Services.AddInfrastructure(builder.Configuration);
 // Add JWT authentication
 builder.Services.AddJwtAuthentication(builder.Configuration);
 
+// Agregar antes de builder.Build()
+builder.Services.AddResponseTimeOptions(options =>
+{
+    options.ThresholdMs = 500;
+    options.LogSlowRequests = true;
+},
+builder.Configuration
+);
+
 // Register application services
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
@@ -123,5 +135,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.UseResponseTimeMiddleware();
 
 app.Run();
